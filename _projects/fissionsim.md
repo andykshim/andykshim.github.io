@@ -10,9 +10,7 @@ title: Project Title
 
 ---
 
-<iframe width="720" height="405"
-src="https://www.youtube.com/watch?v=SqB7Jm-Cdmk&list=PLDqMkB5cbBA6AwYC_DElkDStUdOsTuIL7&index=3&t=2s">
-</iframe>
+<iframe width="720" height="405" src="https://www.youtube.com/embed/SqB7Jm-Cdmk?si=2iLfWaJlE8HGIE9p" title="YouTube video player" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" referrerpolicy="strict-origin-when-cross-origin" allowfullscreen></iframe>
 
 
 ## 1\. Overview and Credits
