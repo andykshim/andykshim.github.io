@@ -3,7 +3,7 @@ layout: default
 title: Inverted Pendulum Verification
 ---
 
-# Inverted Pendulum Verification
+# Inverted Pendulum Controller Verification
 ___
 ___
 ## 1. Overview and Credits
@@ -19,7 +19,7 @@ This project was completed for ECE 584 at UIUC. The class was taught in Fall 202
 
 **Tech Stack** 
 * Languages: C++
-* Tools: [Flow*](https://github.com/chenxin415/flowstar]) 
+* Tools: [Flow*](https://github.com/chenxin415/flowstar) 
 * Key Concepts: verification of control systems, non-linear hybrid systems, taylor model flowpipes
 
 **Related Links** \
@@ -187,7 +187,7 @@ __Implementation in Flow*__
 
 Flow* provides the functions and classes necessary to both incorporate the ODEs and the control law of the system and build a testing routine in C++. The first step is to create a Flow* Variables object and to define the necessary variables for the system.
 
-```
+```c
     // Declare variables
     Variables vars;
     int x_id = vars.declareVar("x");
@@ -201,7 +201,7 @@ Flow* provides the functions and classes necessary to both incorporate the ODEs 
 
 The ODE's that model the target system must be provided as a vector of strings. Firstly, we define some system parameters as chose above:
 
-```
+```c
     // System parameters
     double M = 1.5; // mass of cart in kg
     double m1 = 0.5; // mass of first arm in kg
@@ -213,7 +213,7 @@ The ODE's that model the target system must be provided as a vector of strings. 
 
 Due to the complexity of of the ODE, we define intermediary strings. These match the defintion of d1-d2 and f1-f2 above:
 
-```
+```c
     // Matrix oefficient expressions
     string d1 = to_string(M + m1 + m2);
     string d2 = to_string((0.5*m1 + m2)*L1);
@@ -228,7 +228,7 @@ Due to the complexity of of the ODE, we define intermediary strings. These match
 
 The $\textbf{D}$, $\textbf{C}$, $\textbf{G}$, and $\textbf{H}$ matrices are constructed, matching their definition above.
 
-```
+```c
 // Define ODEs
     string D_c = "(1/("+d1+"*"+d4+"*"+d6+" - "+d2+"^2*"+d6+"*cos(theta1)^2 - "+d1+"*"+d5+"^2*cos(theta1-theta2)^2 + 2*"+d2+"*"+d3+"*"+d5+"*cos(theta1)*cos(theta1-theta2)*cos(theta2) - "+d3+"^2*"+d4+"*cos(theta2)^2))";
     string D_11 = "("+D_c+"*("+d4+"*"+d6+" - "+d5+"^2*cos(theta1-theta2)^2))";
@@ -238,13 +238,14 @@ The $\textbf{D}$, $\textbf{C}$, $\textbf{G}$, and $\textbf{H}$ matrices are cons
 
 The control law is input as a separate vector string. The gains of the controller, k1-k6 correspond to the six state variables of the DIPC, and are computed based on the $\textbf{A}$ and $\textbf{B}$ matrices via a matlab script.
 
-```
+```c
     // Define control law u
     vector<string> ctrl_law = {"(-"+K1+"*x - "+K2+"*theta1 - "+K3+"*theta2 - "+K4+"*v - "+K5+"*omega1 - "+K6+"*omega2)"};
 ```
 
 Finally, we create a *feedback* object, with the above variables, ode of the system, and control law.
 
+```c
     // Create Feedback object
     Feedback<Real> feedback(vars, 0.0005, ode, ctrl_law);
 ```
@@ -275,7 +276,7 @@ Since we cannot define a larger initial set, we run a reachability check on a fi
 
 ## 5. Results
 
-**Angle Offset, Indentical**
+**Initial Angle Offset, Indentical**
 
 We wanted to test a range of different conditions for the DIPC system, so first we decided to run some tests with $\theta_1^{(0)} = \theta_2^{(0)}$. We ran lots of test runs with initial angles between -0.8 and 0.8. A few of the resulting graphs are shown below.
 
@@ -292,49 +293,53 @@ We can see from the above figures that the system follows a similarly shaped tra
 The above graphs depict a failure, where the simulation ended very early on due to overestimation. The cart position and velocity begin to take off, and it fails to bring the angles closer to 0 before the simulation ends. From further testing, we concluded that the controller is safe with an initial angle range of [-0.70, 0.70] up to a time horizon of T = 4.0 seconds, according to our criteria.
 
 
-**Angle Offset, Differing**
+**Initial Angle Offset, Differing**
+
+Based on our testing, we discovered that the stability of the DIPC system with differing inital angles is largely dependent on the magnitude of the difference between $\theta_1^{(0)}$ and $\theta_2^{(0)}$. Of course, just as in the identical case above, the magnitude of $\theta_1^{(0)}$ matters too. An increase of either value leads to a decrease in stability, and a larger $\theta_1^{(0)}$ decreases the threshold of the difference between the angles before the system becomes unstable.
 
 
+**Inital Angular Velocity**
 
+For the purposes of verifying the safe initial set of angular velocities, we start each verification with both pendulum arm angles at 5° from center. We took a binary-search like approach in order to find an accurate value for the maximum safe angular velocities in either direction.
 
----
+<div style="text-align: center;">      
+<img src="/assets/pendulum/omega_results.png" alt="simulation" width="410">                                                                                                                                       
+</div>  
 
-## 9. Lessons Learned
+The two plots show the trajectory of the double inverted pendulum in terms of $\theta_1$ and $\theta_2$. Both runs have identical $\theta_1 = \theta_2 = 0.0873 $ (5°), but with different positive initial angular velocities. At $\dot{\theta} = 1.28 s^{-1}$ the controller is verified safe. Following the trajectory of the model, note the maximum positive angle deflection in $\theta_1$ of about 0.16. The pendulum arm then swings back towards upright, overshoots to a maximum negative  angle of about -0.075, before the verification completes near the upright angle. This controller is exhibiting damped oscillatory behavior, which is desired.
 
-* Architectural insights gained
-* Design mistakes and how you would correct them
-* Scalability limitations discovered
-* Engineering principles reinforced
+In contrast, with $\dot{\theta} = 2.08 s^{-1}$, the controller fails to suppress the large initial velocity and swing the pendulum arms back toward 0. Similarly to the results from the safe angle verification, we also saw initial points near the boundary between safe and unsafe that terminate early before T = 4s, even though it exhibits similar damped oscillatory behavior.
 
----
+In total, 16 separate runs were completed between the range of [-4, 2.56]. Within this range, we successfully verified the following subset between [-1.76, 1.44] as safe. All values are measured in terms of radians/s.
 
-## 10. Future Work
-
-* Performance improvements
-* Architectural redesign ideas
-* Feature extensions
-* Scalability enhancements
-* Production-level considerations
+In all of the simulations above, the control force is limited by the minimized cost function. In certain applications of inverted pendulum verification, a maximum force would be desirable, and this is possible within Flow*. For the purposes of this paper, we explored the full capabilites of a LQR controller outside of arbitrary physical constraints.
 
 ---
 
-## 11. Visual Documentation
+## 6. Lessons and Future Work
 
-Include:
-* Block diagrams
-* Timing diagrams
-* PCB layouts
-* System photos
-* 3D renders
-* Waveform captures
-* Annotated architecture diagrams
+We have shown that the chaotic nonlinear systems such as the DIPC pendulum model can be simulated for the purposes of a reachability/safety set analysis.
+However the flow* tool in its current state faces limiations with the overapproximation "blow-up" we dicusssed above. It appears that the feedback mechanism in flow* should be extended to better suit controllers for such non-linear systems.
+
+Directions/Ideas for future work:
+* The process of safety set validation with flowstar in its current state is too manual, since changing certain parameters can require a recompilation. This is then followed by a simulation that can take anywhere from a few seconds to hours depending on the simulation complexity.
+This can and should be automated, so that a script can automatically try a sweep across many vairables and report the results--which can be in the form of a vector map of sorts
+* Extending the flow* tool to improve the blow-up behavior
+* Exploration of alternative tools with the same DIPC model
 
 ---
 
-## 12. Reproducibility
+## 7. Reproducibility
 
-* Build instructions
-* Setup steps
-* Known limitations
-* Dependencies
-* How to replicate results
+All source code can be found on the project [git](https://github.com/andykshim/Inv-Pendulum-Verification), specifically under /flowstar_models/.
+
+Compile using **make** and run the ececutable. Upon execution of the compiled code, the appropriate *output.plt* files will be generated in the */outputs/* folder.
+
+Use **"gnuplot output.plt"** to generate a *.eps* file.  
+You can convert *.eps* to *.png* file via  **"convert output.eps output.png"**. 
+The provided shell script *outputs.sh* will automatically convert to *.eps* and *.png*.
+
+Both represent an iamge of the taylor model flowpipes over the entire duration of simulation execution. It is the evolution of the overapproximate bounding box of the system from the initial state to the end of the simulation.
+
+For certain plots a frame-by-frame analysis may be useful.
+Use our script via **"visualizer.py outputs/output.plt"**
